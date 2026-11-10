@@ -1,50 +1,67 @@
 # PyDoctor Product Specification
 
-## Working Name
+## Purpose
 
-PYD (PyDoctor)
+Help Windows users understand Python interpreter and environment choices through
+explainable evidence, without silently selecting or modifying an environment.
 
-## Product Purpose
+## Product principles
 
-PyDoctor is intended to help Windows users diagnose Python environment problems without requiring deep expertise in Python packaging or runtime configuration. It should explain what is wrong and suggest actionable next steps.
+- Evidence before assumptions.
+- CONFIRMED, LIKELY, and UNKNOWN describe a bounded observation, not severity.
+- Preserve source provenance, conflicts, and missing information.
+- Never claim that a file is valid Python or healthy without relevant verification.
+- Do not execute unknown interpreters for inspection.
+- Keep collection read-only, bounded, and standard-library-only.
+- Keep the engine independently testable before adding a desktop interface.
 
-## Initial Problem Areas
+## Current engine capabilities
 
-- Dependency conflicts and inconsistent package versions
-- Import errors and missing modules
-- Python interpreter and virtual environment confusion
-- Common Python and Jupyter configuration problems
+### M1: Current interpreter
 
-## Target Users
+Observe the trusted process running PYD: executable, version, implementation,
+prefixes, sys.path, and the VIRTUAL_ENV hint. Emit schema 1.0 with scope
+`current_interpreter`.
 
-- Python developers who need faster environment troubleshooting
-- Data scientists and Jupyter users
-- Technical support and developer-tooling teams
-- Less experienced users who need clear explanations
+This does not inspect another interpreter or diagnose packages.
 
-## Product Principles
+### M2: Windows discovery
 
-- Diagnose first; do not modify environments without explicit user action.
-- Present findings in plain language and preserve technical detail for advanced users.
-- Keep diagnostics repeatable and testable outside the desktop UI.
-- Avoid unnecessary dependencies and privileged system changes.
+Collect current-runtime evidence, PEP 514 registrations, the installed legacy
+launcher's listing, direct PATH entries, active-environment hints, and optional
+project-local environment roots.
 
-## Initial Scope
+Emit schema 1.1 with scope `python_discovery`.
 
-The original setup phase covered project structure, configuration, documentation, and environment readiness. M1 now adds read-only current-interpreter diagnostics: runtime identity, prefix observations, and conservative evaluation of the VIRTUAL_ENV shell hint. Package checks, repair execution, target-interpreter discovery, and the desktop interface are not implemented.
+Registrations, aliases, incomplete directories, and regular files remain
+evidence rather than a guaranteed inventory of runnable Python installations.
 
-## Explicit Non-Goals for the Setup Phase
+### M3: Intended interpreter comparison
 
-- Installing Python or JavaScript packages
-- Generating a Tauri application without the required toolchain
-- Implementing diagnostic rules
-- Creating installers or publishing releases
-- Adding cloud services, telemetry, or credentials
+Accept an explicit absolute interpreter path, observe its file metadata, reuse
+M2, and explain its relationship to candidate executable paths and file identities.
 
-## Success Criteria for the Initial Setup
+Emit schema 1.2 with scope `intended_interpreter_comparison`.
 
-- The repository is initialized inside `C:\Users\ACER\Source\Repo\PYD`.
-- The desktop and Python engine boundaries are documented.
-- The Python engine package has basic configuration and a smoke test.
-- The development environment and missing prerequisites are recorded.
-- Existing files are preserved and no files outside PYD are modified.
+Outcomes are MATCHED, PARTIALLY_MATCHED, NO_MATCH, and INSUFFICIENT_EVIDENCE.
+None is an interpreter-health result or an automatic selection decision.
+
+## User interaction boundary
+
+The current interaction is a local JSON CLI. The user selects the trusted Python
+running PYD and, for M3, supplies the intended target path separately.
+
+Project context is optional and explicit. No cwd-based target inference or
+recursive repository scan is performed.
+
+## Future problem areas
+
+Package inventory, dependency/import diagnosis, notebook errors, controlled
+repair recommendations, and a polished Windows desktop application are future
+milestones. They are not implemented by M1–M3.
+
+## Acceptance
+
+Source delivery alone is not acceptance. Automated tests, Windows-specific
+checks, documented limitations, and founder review are required as described in
+`TESTING.md` and `ROADMAP.md`.

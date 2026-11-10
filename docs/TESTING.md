@@ -1,60 +1,188 @@
 # Testing
 
-## Current Coverage
+## Policy
 
-M1 includes 21 standard-library tests covering package import/version, runtime collection, base and isolated prefix observations, absent and empty activation hints, matching and different directory identities, relative/missing/inaccessible paths, UNKNOWN guidance, Unicode JSON, runtime non-mutation, CLI output/error streams, argument validation, and a real module invocation.
+Use a known trusted Python 3.12+ interpreter. Do not install dependencies.
 
-Tests create and clean up temporary fixture directories; the diagnostic collector itself performs no repairs. Confidence is tested independently from command exit status.
+Record Python version, platform, command, exit code, failures, skips, and blocked
+checks. Source delivery is not test execution. Do not infer Windows acceptance
+from mocks or another operating system.
 
-## Offline Python Engine Tests
+## Coverage
 
-Requires Python 3.12 or newer. No installation, network access, pytest, or desktop tools are required.
+The original 21 M1 tests and the existing combined 82-test M1/M2 suite remain.
 
-From the repository root in PowerShell:
+New tests cover:
+
+- Inert text named python.exe and file-only confidence.
+- Alias/directory identity isolation.
+- Target syntax, relative paths, existence, directories, and permission errors.
+- Exact Windows path relationships and regular-file identity.
+- Missing or unsupported identity, zero inode, and hardlinks.
+- Incomplete candidates, provenance paths, multiple sources, and conflicts.
+- Partial/no-match/insufficient outcomes.
+- Schema 1.2, immutability, deterministic output, and CLI argument validation.
+- M1/M2 compatibility and launcher missing/timeout issue propagation.
+- Optional real Windows junction behavior.
+
+Fixture files are inert. No test executes a fixture interpreter. Existing real
+CLI tests execute only the trusted Python running the test suite.
+
+## Automated tests
+
+From the project root in PowerShell:
 
 ```powershell
 .\scripts\run-tests.ps1
 ```
 
-The runner selects `engine/python/.venv/Scripts/python.exe` if present, otherwise `python`. It temporarily sets PYTHONPATH to the source directory, restores the prior value and working directory, and forwards the test exit code. PowerShell execution policy is not changed; if the script is blocked, use the direct command below.
-
-Portable alternative, from `engine/python/src`:
+Also run the explicit unittest command with a temporary PYTHONPATH:
 
 ```powershell
-python -m unittest discover -s ../tests -p "test_*.py" -v
+$oldPythonPath = $env:PYTHONPATH
+try {
+    $env:PYTHONPATH = (Join-Path (Get-Location) "engine\python\src")
+    python -m unittest discover -s engine/python/tests -p "test_*.py" -v
+    if ($LASTEXITCODE -ne 0) { throw "unittest failed: $LASTEXITCODE" }
+}
+finally {
+    if ($null -eq $oldPythonPath) {
+        Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PYTHONPATH = $oldPythonPath
+    }
+}
 ```
 
-Expected result: `Ran 21 tests` and `OK`, with exit code 0. A lower test count or an unexecuted command is not full acceptance. The tests also remain discoverable by pytest when that optional tool is available.
+Expected: exit 0, no failures or errors. Capability-dependent hardlink and
+junction skips must be reported. Do not invent a passed test count; record the
+actual count printed by unittest.
 
-## Manual Runtime Verification
+pytest and Ruff are optional existing tools. Do not install them. If unavailable,
+record them as not run or blocked.
+
+## Real Windows CLI acceptance
 
 From `engine/python/src`:
 
 ```powershell
 python -m pydoctor --pretty
+python -m pydoctor --discover --pretty
 ```
 
-Expect exactly one JSON report on stdout and no stderr. Verify `runtime.executable`, `runtime.prefix`, and `runtime.base_prefix` against the Python selected in that terminal. Repeat from an already available virtual environment if desired; no environment creation is necessary. Exit 0 means collection completed, not that every environment problem was ruled out. UNKNOWN and LIKELY findings are valid successful reports. See `docs/ENGINE_CONTRACT.md`.
+Expected: exit 0, one JSON document on stdout, empty stderr.
 
-## Optional Linting and pytest
+- M1: schema 1.0, scope current_interpreter.
+- M2: schema 1.1, scope python_discovery.
+- M2 issues may indicate legitimate partial discovery.
 
-No new tools are installed by this milestone. If the optional development environment already exists, run from `engine/python`:
+Use the trusted engine interpreter path as M3's target:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m ruff check .
+$knownPython = python -c "import sys; print(sys.executable)"
+python -m pydoctor --compare-interpreter "$knownPython" --pretty
 ```
 
-Otherwise report these checks as blocked by unavailable optional tools; do not claim they passed or install them automatically.
+Expected: exit 0, schema 1.2, scope intended_interpreter_comparison,
+target REGULAR_FILE, outcome MATCHED, and interpreter_verification NOT_VERIFIED.
 
-## Desktop Tests
+The setup command executes only the already selected trusted Python, not a
+discovered or arbitrary target.
 
-Desktop tooling remains undefined until the official Tauri React + TypeScript scaffold is generated. No desktop test or build is included in M1.
+Create temporary project fixtures and run:
 
-## Verification Rules
+```powershell
+$fixture = Join-Path ([IO.Path]::GetTempPath()) ("pyd-accept-" + [guid]::NewGuid())
+try {
+    New-Item -ItemType Directory -Path "$fixture\.venv\Scripts" -Force | Out-Null
+    Set-Content -LiteralPath "$fixture\.venv\Scripts\python.exe" `
+        -Value "Inert fixture, not Python." -Encoding ASCII
 
-- Record the interpreter version and platform used for each run.
-- Windows acceptance requires execution on the founder's Windows/Python environment.
-- Record passed, failed, blocked, and skipped checks separately.
-- Do not infer target-Python compatibility from a run on an older or different runtime.
-- Keep engine tests independent from the desktop application.
+    python -m pydoctor --discover --project "$fixture" --pretty
+    if ($LASTEXITCODE -ne 0) { throw "Project discovery failed" }
+
+    python -m pydoctor --compare-interpreter "$fixture\.venv\Scripts\python.exe" `
+        --project "$fixture" --pretty
+    if ($LASTEXITCODE -ne 0) { throw "Project comparison failed" }
+
+    python -m pydoctor --compare-interpreter "$fixture\missing\python.exe" `
+        --project "$fixture" --pretty
+    if ($LASTEXITCODE -ne 0) { throw "Missing-target report failed" }
+}
+finally {
+    if (Test-Path -LiteralPath $fixture) {
+        Remove-Item -LiteralPath $fixture -Recurse -Force
+    }
+}
+```
+
+Expected:
+
+- Project discovery includes project evidence for the inert .venv file.
+- Project comparison is MATCHED by exact path, not a health verdict.
+- Inert file version is not inferred from its contents or directory name.
+- Missing target status is MISSING; it must not produce MATCHED.
+- Every comparison target says interpreter_verification NOT_VERIFIED.
+
+## Optional real junction acceptance
+
+Run from the project root on Windows/Python 3.12+.
+
+This fixture creates an ordinary temporary junction, not a symbolic link and
+not a system setting. If the filesystem or local policy rejects creation,
+record the junction acceptance as blocked. Do not elevate automatically.
+
+```powershell
+$fixture = Join-Path ([IO.Path]::GetTempPath()) ("pyd-junction-" + [guid]::NewGuid())
+$oldPythonPath = $env:PYTHONPATH
+$oldJunctionRoot = $env:PYD_JUNCTION_ROOT
+try {
+    New-Item -ItemType Directory -Path "$fixture\real" -Force | Out-Null
+    Set-Content -LiteralPath "$fixture\real\python.exe" `
+        -Value "Inert junction fixture." -Encoding ASCII
+    New-Item -ItemType Junction -Path "$fixture\junction" `
+        -Target "$fixture\real" -ErrorAction Stop | Out-Null
+
+    $env:PYTHONPATH = (Join-Path (Get-Location) "engine\python\src")
+    $env:PYD_JUNCTION_ROOT = $fixture
+    python -m unittest discover -s engine/python/tests `
+        -p "test_m2_finalization.py" -v
+    if ($LASTEXITCODE -ne 0) { throw "Junction acceptance failed" }
+}
+finally {
+    if (Test-Path -LiteralPath "$fixture\junction") {
+        [IO.Directory]::Delete("$fixture\junction")
+    }
+    if (Test-Path -LiteralPath $fixture) {
+        Remove-Item -LiteralPath $fixture -Recurse -Force
+    }
+    if ($null -eq $oldPythonPath) {
+        Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PYTHONPATH = $oldPythonPath
+    }
+    if ($null -eq $oldJunctionRoot) {
+        Remove-Item Env:PYD_JUNCTION_ROOT -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:PYD_JUNCTION_ROOT = $oldJunctionRoot
+    }
+}
+```
+
+The junction is explicitly removed before recursive cleanup. No fixture file is
+executed. Without PYD_JUNCTION_ROOT, this optional integration test is skipped.
+
+## Acceptance record
+
+The earlier Linux run recorded 82 passing tests on Python 3.11.16. The founder's
+November 10 audit reports successful Windows checks for the previous M2 version.
+
+Neither result validates the new finalization or M3 code. Their results must be
+recorded by the implementation agent after applying this delivery.
+
+M2/M3 acceptance requires source/document review, successful automatic tests,
+Windows CLI checks, explicit safety semantics, and an actual junction result or
+an acknowledged remaining junction limitation.

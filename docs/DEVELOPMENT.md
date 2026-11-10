@@ -1,102 +1,98 @@
 # Development Setup
 
-## Environment Audit
+## Historical environment audit
 
-Audit date: 2026-11-09
+Audit date: 2026-11-09.
 
-Operating system: Microsoft Windows 11 Pro, version 10.0.26200, 64-bit.
+Windows 11 Pro 10.0.26200, 64-bit.
 
-| Tool | Status | Version | Executable path |
-| --- | --- | --- | --- |
-| Git | Installed | 2.48.1.windows.1 | `C:\Program Files\Git\cmd\git.exe` |
-| Python | Installed | 3.12.9 | `C:\Program Files\Python312\python.exe` |
-| Node.js | Missing | — | — |
-| npm | Missing | — | — |
-| Rust | Missing | — | — |
-| Cargo | Missing | — | — |
+| Tool | Recorded status | Recorded version |
+| --- | --- | --- |
+| Git | Installed | 2.48.1.windows.1 |
+| Python | Installed | 3.12.9 |
+| Node.js / npm | Missing | - |
+| Rust / Cargo | Missing | - |
+| pytest / Ruff | Missing | - |
 
-Additional observations:
+Recorded Python: `C:\Program Files\Python312\python.exe`.
 
-- `python3` resolves to a Windows Apps stub at `C:\Users\ACER\AppData\Local\Microsoft\WindowsApps\python3.exe`; use the explicit Python 3.12 path or the `python` command.
-- pip 26.3 is available for the installed Python 3.12 interpreter.
-- setuptools 84.0.0 and wheel 0.46.3 are installed for Python 3.12.
-- pytest and Ruff are not installed yet.
-- The C: drive had approximately 38.06 GB free at audit time. This is sufficient for initial development, but dependency and build caches should be monitored.
-- The PATH contains a reference to `D:\apps\nodejs`, but that path and drive were not available during the audit.
-- The Tauri CLI is not installed.
-- The official Tauri Windows prerequisites include Microsoft C++ Build Tools and WebView2. These have not been verified.
+The recorded `python3` command resolved to a WindowsApps stub. Use a known
+trusted interpreter rather than assuming an alias is a working Python runtime.
 
-No global software was installed, no PATH changes were made, and no system settings were modified during this audit.
+The audit recorded pip 26.3, setuptools 84.0.0, wheel 0.46.3, approximately
+38.06 GB free on C:, an unavailable `D:\apps\nodejs` PATH reference, and no
+verified Tauri Windows prerequisites.
 
-## Prerequisites for Desktop Development
+These are historical observations, not current toolchain verification. No
+global software, PATH, or system settings were changed by that audit.
 
-Before generating the Tauri desktop application, install or verify:
+## Python engine
 
-1. Node.js LTS and npm.
-2. Rust stable with the MSVC toolchain selected as the default host.
-3. Microsoft C++ Build Tools with the "Desktop development with C++" workload.
-4. Microsoft Edge WebView2 Runtime.
-5. The Tauri CLI or use the npm-based `create-tauri-app` workflow.
+Python 3.12+ is required. No package installation is needed for source execution.
 
-Restart the terminal after installing these tools so executable paths are refreshed. Do not install global tools without explicit project approval.
-
-## Desktop Scaffold
-
-The official Tauri workflow is documented at:
-
-- <https://v2.tauri.app/start/create-project/>
-- <https://v2.tauri.app/start/prerequisites/>
-
-When the prerequisites are available, scaffold inside `apps/desktop` using:
-
-```powershell
-npm create tauri-app@latest .
-```
-
-Select React and TypeScript. Review the generated files and dependency versions before installing dependencies. Keep all generated project files inside `apps/desktop`.
-
-## Python Engine Setup
-
-Python 3.12 or newer is required. The M1 CLI and standard-library tests can run directly from source without installing any packages. From `engine/python/src`:
+From `engine/python/src`:
 
 ```powershell
 python -m pydoctor --pretty
-python -m unittest discover -s ../tests -p "test_*.py" -v
+python -m pydoctor --discover --pretty
+python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --pretty
+python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --project "C:\Path\To\Project" --pretty
 ```
 
-These commands use the selected `python` interpreter, not an automatically discovered target environment. Reports contain local paths; inspect them before sharing.
+Default invocation observes the Python running PYD, not the comparison target.
+M3 never executes the target. Target paths must be absolute and are not expanded
+from environment variables or resolved against cwd.
 
-### Optional Development Tools
+Discovery and comparison support explicit project context. No recursive project
+scan or automatic environment activation is performed.
 
-Only after approval for package installation, run the following from `engine/python`:
+## Tests
+
+From the project root:
+
+```powershell
+.\scripts\run-tests.ps1
+```
+
+For explicit unittest commands, CLI acceptance, temporary fixtures, and optional
+junction verification, follow `TESTING.md`.
+
+Reports expose local paths. Inspect them before sharing.
+
+## Optional development environment
+
+Only with separate package-installation approval, an isolated development
+environment may be created from `engine/python`:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 ```
 
-This creates an isolated environment and installs the engine and development tools. Installation may download packages; it is not required for M1 verification and is not authorized by the implementation package. The `.venv` directory is ignored by Git.
+This is not required or authorized by the M2/M3 delivery. It can download
+packages and must not be performed automatically.
 
-## Repository Commands
-
-Run engine tests from the repository root:
-
-```powershell
-.\scripts\run-tests.ps1
-```
-
-Inspect repository state:
+If optional tools already exist:
 
 ```powershell
-git status
-git diff
+.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m ruff check .
 ```
 
-No remote is configured. Do not publish or push this repository as part of initial setup.
+Otherwise report them unavailable. Do not install dependencies to make a
+verification report look complete.
 
-## Known Setup Blockers
+## Desktop status
 
-- Node.js and npm are unavailable, so the official React/TypeScript Tauri scaffold cannot be generated.
-- Rust and Cargo are unavailable, so the Tauri shell cannot be built.
-- Tauri Windows build prerequisites have not been verified.
-- Optional Python development dependencies were absent at the snapshot audit. They are no longer required for the standard-library tests; pytest and Ruff checks remain blocked until separately approved and installed.
+The historical Node.js, Rust, Cargo, Tauri CLI, C++ Build Tools, and WebView2
+readiness limitations do not block engine tests. No desktop scaffold or
+toolchain installation is part of M1–M3.
+
+## Applying a text delivery
+
+Validate paths under the project root, inspect existing files, and back up
+replaced files before applying complete replacements. Do not overwrite an
+unexpected CREATE target or silently merge divergent code.
+
+Run the specified tests and report actual results. Do not independently change
+the delivered code, install tools, commit, or push.

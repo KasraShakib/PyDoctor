@@ -1,69 +1,97 @@
-# PyDoctor (PYD)
+# PYD / PyDoctor
 
-PyDoctor is a planned professional Windows desktop application for diagnosing Python environment issues. Its intended focus includes dependency conflicts, import failures, and common Python and Jupyter problems.
+PYD is an engine-first Windows Python environment diagnosis project.
 
-The repository includes its first read-only diagnostic slice: a versioned JSON report of the current Python interpreter, runtime prefixes, import search paths, and optional shell activation evidence. The desktop application is not scaffolded yet.
+The engine currently supports:
 
-## Proposed Direction
+- M1: observation of the Python process running the engine.
+- M2: bounded, read-only discovery of Windows Python environment candidates.
+- M3: comparison of an explicitly intended interpreter path with M2 evidence.
 
-- React and TypeScript for the desktop interface
-- Tauri for the Windows desktop shell
-- A separate Python diagnostic engine
-- Independently testable desktop and engine components
+No desktop application, package inventory, dependency diagnosis, notebook
+diagnosis, automatic interpreter selection, repair, or distribution packaging
+is implemented.
 
-The technology direction is provisional. Dependencies and versions should be added only when needed and when supported by the installed toolchain.
+## Run from source
 
-## Repository Layout
+Use a known, trusted Python 3.12+ interpreter.
 
-```text
-PYD/
-├── apps/desktop/          # Reserved for the React + TypeScript + Tauri app
-├── engine/python/         # Python diagnostic engine package and tests
-├── scripts/               # Project automation scripts
-└── docs/                  # Product, architecture, testing, and development notes
+From `engine/python/src`:
+
+```powershell
+python -m pydoctor --pretty
+python -m pydoctor --discover --pretty
+python -m pydoctor --discover --project "C:\Path\To\Project" --pretty
+python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --pretty
+python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --project "C:\Path\To\Project" --pretty
 ```
 
-## Current Status
+| Mode | Schema | Scope |
+| --- | --- | --- |
+| Default M1 | 1.0 | current_interpreter |
+| M2 discovery | 1.1 | python_discovery |
+| M3 comparison | 1.2 | intended_interpreter_comparison |
 
-- Project structure and initial documentation created.
-- Initial Python runtime diagnostics and an offline JSON CLI implemented.
-- Standard-library tests run without installing the engine, pytest, or Ruff.
-- Python engine package retains optional pytest and Ruff development settings.
-- Local Git repository initialized; no remote configured.
-- Desktop application scaffold not generated because Node.js, npm, Rust, and Cargo are not installed.
-- No Python or JavaScript dependencies installed yet.
+`--discover` and `--compare-interpreter` are mutually exclusive.
+`--project` requires one of these modes.
 
-## Environment Summary
+M3 requires an absolute target path. Relative paths and invalid target syntax
+produce an uncertainty report, not an implicit cwd-based selection.
 
-| Tool | Status | Version | Path |
-| --- | --- | --- | --- |
-| Git | Installed | 2.48.1.windows.1 | `C:\Program Files\Git\cmd\git.exe` |
-| Python | Installed | 3.12.9 | `C:\Program Files\Python312\python.exe` |
-| Node.js | Missing | — | — |
-| npm | Missing | — | — |
-| Rust | Missing | — | — |
-| Cargo | Missing | — | — |
+## What the evidence means
 
-The C: drive had approximately 38.06 GB free at audit time. See `docs/DEVELOPMENT.md` for the full audit and setup prerequisites.
+A regular file named `python.exe` may be inert text or an invalid executable.
 
-## Development Entry Points
+M2 candidate `CONFIRMED` means only that a regular file was observed. The
+`interpreter_not_verified` issue explicitly records the missing verification.
 
-- Environment and setup notes: `docs/DEVELOPMENT.md`
-- Product scope: `docs/PRODUCT_SPEC.md`
-- Component boundaries: `docs/ARCHITECTURE.md`
-- Test approach: `docs/TESTING.md`
-- Engineering rules: `AGENTS.md`
+M3 `MATCHED` means a path or file-identity relationship was established. It
+does not mean the file is Python, runnable, safe, compatible, or healthy.
+The target field `interpreter_verification` remains `NOT_VERIFIED`.
 
-Run the engine tests from the repository root with Python 3.12 or newer; no dependency installation is required:
+WindowsApps paths are treated conservatively as alias evidence.
+
+## Safety
+
+The engine does not execute intended or discovered Python interpreters, import
+their packages, activate environments, change PATH or Registry, install packages,
+repair environments, recursively scan disks, or make network requests.
+
+The sole discovery subprocess is the legacy Python Launcher's `-0p` listing,
+resolved from documented conventional installed locations. This policy trusts
+the invoking environment and installed locations; it is not signature validation.
+
+Normal startup behavior of the trusted Python running PYD is outside the
+collector's control. Reports contain local paths; review them before sharing.
+
+## Test
+
+From the project root:
 
 ```powershell
 .\scripts\run-tests.ps1
 ```
 
-For a diagnostic report, change to `engine/python/src` and run:
+Alternatively, set `PYTHONPATH` to `engine/python/src` and run:
 
 ```powershell
-python -m pydoctor --pretty
+python -m unittest discover -s engine/python/tests -p "test_*.py" -v
 ```
 
-This reports only the interpreter executing the command. It does not scan other installations, check packages, or repair anything. Paths in the report can contain personal information; review them before sharing. See `docs/ENGINE_CONTRACT.md` for the JSON contract.
+No dependency installation is required. See `docs/TESTING.md` for the exact
+acceptance procedure and optional real Windows junction coverage.
+
+## Status and documentation
+
+M1 is accepted at baseline commit
+`9ceeacf414c6799b5d093aa7320a2d5f06a7af66`.
+
+The founder's November 10, 2026 audit reports successful Windows M2 tests and
+CLI checks. The finalization changes and M3 delivery still require execution
+and review before acceptance. No new commit is authorized.
+
+- `docs/ENGINE_CONTRACT.md`: report, matching, error, and safety semantics.
+- `docs/ARCHITECTURE.md`: module boundaries.
+- `docs/M2_DISCOVERY.md`: discovery acceptance and intentional limitations.
+- `docs/TESTING.md`: automated and real Windows acceptance.
+- `docs/ROADMAP.md`: milestone gates and deferred work.

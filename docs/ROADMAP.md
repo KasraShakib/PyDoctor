@@ -1,43 +1,68 @@
 # Roadmap
 
-## Phase 0: Initial Setup
+## Foundation
 
-Status: repository foundation complete; desktop toolchain readiness still blocked
+- Repository and Python engine foundation exist.
+- Desktop scaffolding and toolchain readiness are separate work.
+- No desktop implementation is claimed.
 
-- [x] Create the PYD project structure
-- [x] Document product scope and architecture boundaries
-- [x] Configure the Python engine package
-- [x] Record the development environment audit
-- [x] Initialize local Git without publishing
-- [ ] Prepare the desktop scaffold when Node.js and Rust are available
+## M1: Current interpreter inspection
 
-## Phase 1: Diagnostic Engine Foundation
+Status: accepted and committed.
 
-M1 implementation: current-interpreter evidence and offline JSON CLI. Windows acceptance must be established by the local test report, not inferred from source delivery.
+Baseline: `9ceeacf414c6799b5d093aa7320a2d5f06a7af66`.
 
-- [x] Define a structured diagnostic result model with confidence levels
-- [x] Observe the current interpreter, prefixes, sys.path, and activation hint
-- [x] Add isolated standard-library tests and a real CLI invocation test
-- [x] Document the initial JSON report and local CLI contract
-- [ ] Compare an explicitly intended interpreter with observed evidence
-- [ ] Discover other interpreters safely; define target-process trust and timeouts first
-- [ ] Add package inventory and evidence-based dependency/import diagnostics
-- [ ] Establish the actual desktop-to-engine process integration
+- Immutable runtime and finding models.
+- Current-process executable, version, prefixes, and sys.path.
+- Conservative activation-hint comparison.
+- Schema 1.0 and default JSON CLI.
+- Original 21 unittest tests retained.
 
-M1 does not infer that an environment is healthy, install packages, or perform repairs.
+## M2: Python environment discovery
 
-## Phase 2: Desktop Shell
+Status: implemented; Windows audit passed for the pre-finalization implementation.
+Finalization acceptance remains pending execution of the delivered changes.
 
-- Generate and configure the official Tauri React + TypeScript app
-- Build the initial diagnostic workflow
-- Connect the UI to the Python engine safely
-- Add error states and clear remediation guidance
+The founder's November 10, 2026 audit reports 82 passing tests, a successful
+PowerShell runner, M1/M2 CLI checks, and a project discovery fixture.
 
-## Phase 3: Windows Packaging and Hardening
+Finalization gate:
 
-- Validate Windows build prerequisites
-- Add installer and release configuration when appropriate
-- Add accessibility, logging, and update policies
-- Run end-to-end verification on supported Windows versions
+- Documentation aligned with actual behavior.
+- Inert `python.exe` test passes.
+- File-only CONFIRMED semantics and unverified interpreter issue are visible.
+- WindowsApps and directory identity safeguards pass.
+- Existing M1 and M2 tests remain green.
+- Real junction acceptance passes, or its precise blocked limitation is recorded.
+- PATH, launcher trust, and output-buffer limitations are acknowledged.
+- Founder reviews the actual results before authorizing a baseline commit.
 
-Roadmap items are directional. Next recommended slice: explicit intended-interpreter comparison, without automatic launches or repairs. The desktop scaffold remains dependent on approved toolchain setup.
+Do not mark this gate accepted merely because source has been supplied.
+
+## M3: Intended Interpreter Comparison
+
+Status: implementation delivered; application, execution, and acceptance pending.
+
+Acceptance gate:
+
+- Strict absolute target validation.
+- Exact normalized and safe file-identity relationships.
+- Explicit possible, no-match, and insufficient-evidence cases.
+- Alias, missing-file, permission, incomplete-candidate, and conflict coverage.
+- Immutable schema 1.2 report and dedicated CLI.
+- M2 reuse, project integration, deterministic serialization.
+- No target execution or environment modification.
+- Full test suite and Windows CLI acceptance pass.
+- Founder reviews actual results.
+
+Only after these gates pass may M2/M3 be recorded as accepted. No commit or
+push is authorized by the delivery.
+
+## Next milestone
+
+Design a separate, explicitly approved package-inventory milestone. It must
+define trust and collection boundaries before implementation and must not
+silently execute unknown targets.
+
+Dependency diagnostics, notebook diagnosis, repair, desktop UI, integration,
+and distribution packaging remain deferred. Their exact order requires review.

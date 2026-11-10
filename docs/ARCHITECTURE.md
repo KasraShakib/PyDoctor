@@ -2,62 +2,83 @@
 
 ## Status
 
-The desktop architecture remains provisional. Milestone M1 implements a read-only Python runtime report and a versioned JSON CLI; the desktop shell and repair execution remain unimplemented.
+PYD is an engine-first project. M1 observes the engine runtime, M2 discovers
+Windows candidates, and M3 compares an explicitly intended interpreter path
+against discovery evidence.
 
-## Component Boundaries
+The desktop architecture is provisional. React/TypeScript and Tauri remain
+future implementation choices, not an existing process integration.
 
-### Desktop Application
+## Component boundaries
 
-Location: `apps/desktop`
+### Python engine
 
-Planned stack:
+Location: `engine/python`; package: `pydoctor`.
 
-- React for the user interface
-- TypeScript for application code
-- Tauri for the Windows desktop shell and native integration
+- `models.py`: immutable M1 runtime, finding, confidence, and report models.
+- `environment.py`: current-process observation and activation-hint evaluation.
+- `discovery_models.py`: immutable M2 hints, provenance, issues, and candidates.
+- `discovery_registry.py`: bounded read-only PEP 514 collection.
+- `discovery_sources.py`: launcher, PATH, active hints, and opt-in project sources.
+- `discovery_normalization.py`: shared path rules and deterministic M2 merging.
+- `discovery.py`: independent source orchestration.
+- `comparison_models.py`: immutable schema 1.2 models.
+- `interpreter_target.py`: explicit target syntax validation and metadata observation.
+- `comparison.py`: candidate relationship analysis and M2 reuse.
+- `__main__.py`: argument validation, orchestration, and JSON streams.
 
-Responsibilities:
+Target validation does not discover sources. Comparison does not implement a
+second discovery engine. CLI code contains no matching rules.
 
-- Present diagnostic findings and remediation guidance
-- Manage user interaction and application state
-- Invoke the Python engine through a defined boundary
-- Avoid embedding diagnostic logic in UI components
+### Desktop application
 
-### Python Diagnostic Engine
+Reserved location: `apps/desktop`.
 
-Location: `engine/python`
+A future desktop layer may present reports and invoke the engine through a
+supervised boundary. No UI scaffold, Rust bridge, request transport, bundling,
+process supervision, or executable distribution is supplied by M1–M3.
 
-Package: `pydoctor`
+## Integration boundary
 
-Responsibilities:
+Three explicit local CLI modes return independent versioned reports:
 
-- Inspect Python environments and dependencies
-- Evaluate diagnostic rules
-- Return structured findings and suggested actions
-- Run and test independently from the desktop application
+- M1: schema 1.0, `current_interpreter`.
+- M2: schema 1.1, `python_discovery`.
+- M3: schema 1.2, `intended_interpreter_comparison`.
 
-## Integration Boundary
+The default command remains M1. Discovery and comparison are opt-in.
+The authoritative report semantics are in `ENGINE_CONTRACT.md`.
 
-The desktop application and Python engine remain separately testable. M1 defines a versioned JSON report and local CLI in `docs/ENGINE_CONTRACT.md`; this is a first executable boundary, not a completed Tauri integration. The eventual Rust bridge may consume this CLI, but target selection, process supervision, packaging, and request transport are not implemented or finalized.
+## Evidence and identity
 
-### Current Engine Modules
+M2 merges normalized paths and accessible regular-file device/inode identities.
+Provenance preserves original executable paths and conflicting metadata.
+Directories and WindowsApps aliases do not provide identity merge keys.
 
-- `models.py`: immutable runtime evidence, findings, confidence levels, and report serialization.
-- `environment.py`: current-process observation and conservative prefix/activation evaluation.
-- `__main__.py`: argument handling and JSON output only; no diagnostic rules in the CLI.
+M3 checks all established executable paths retained in candidate provenance.
+It never substitutes a prefix, basename, version, or source location for an
+executable path. Device/inode identity follows links and junctions where the
+filesystem supplies a usable identity.
 
-There are no package imports under investigation, subprocesses, network calls, repairs, or environment scans during collection. Directory identity checks can read filesystem metadata for the activation hint. A caller needing the environment of another interpreter must not substitute the engine interpreter's report for it. Normal Python startup behavior, including site hooks and bytecode caching, is outside this collector's control.
+Observations are point-in-time snapshots, not stable file handles or health
+checks. Identity failure is explicit uncertainty.
 
-## Dependency Policy
+## Dependency policy
 
-- Keep runtime dependencies minimal.
-- Do not add a dependency without a concrete need.
-- Use versions supported by the installed toolchain.
-- Keep frontend and engine dependency sets independent.
+Runtime dependencies remain standard-library-only. pytest and Ruff are optional
+development tools, not prerequisites for unittest or the CLI. No dependency
+installation is authorized by this milestone.
 
-## Security and Safety
+## Safety and privacy
 
-- Diagnostics should be read-only by default.
-- Any environment-changing operation must require explicit user confirmation.
-- Never store credentials or secrets in the repository.
-- Avoid privileged system modifications unless a future design explicitly requires and documents them.
+No intended or discovered interpreter is executed. No package is imported for
+investigation, and no repair or environment mutation is performed.
+
+M2's installed-location launcher listing is the sole collection subprocess.
+Installed-location trust is not signature verification. Filesystem metadata
+access may block on remote locations; count limits are not filesystem deadlines.
+
+Python startup hooks and bytecode caching of the trusted engine process remain
+normal Python behavior. Reports may expose usernames, filesystem paths, source
+metadata, and bounded launcher diagnostics. There is no telemetry or network
+transfer.

@@ -1,40 +1,65 @@
 # PyDoctor Python Engine
 
-This independent package implements read-only diagnostics for the interpreter running it. Distribution: `pydoctor-engine`; import package: `pydoctor` in `src/pydoctor`. Requires Python 3.12 or newer and has no runtime dependencies.
+Read-only Python runtime, Windows discovery, and intended-interpreter comparison.
 
-## Run without Installing
+Requires a known trusted Python 3.12+ interpreter. Runtime dependencies: none.
+
+## Source CLI
 
 From `engine/python/src`:
 
 ```powershell
 python -m pydoctor --pretty
-python -m unittest discover -s ../tests -p "test_*.py" -v
+python -m pydoctor --discover --pretty
+python -m pydoctor --discover --project "C:\Path\To\Project" --pretty
+python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --pretty
+python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --project "C:\Path\To\Project" --pretty
 ```
 
-The CLI reports the selected executable, Python version and implementation, prefixes, sys.path, and the VIRTUAL_ENV hint when present. It compares directory identity conservatively and does not infer overall environment health. It does not discover other installations, import packages under investigation, run pip, contact a network, or repair environments.
+| Mode | Schema | Scope |
+| --- | --- | --- |
+| M1 | 1.0 | current_interpreter |
+| M2 | 1.1 | python_discovery |
+| M3 | 1.2 | intended_interpreter_comparison |
 
-Use the interpreter belonging to the environment you want to observe; running the engine in its development venv reports that venv, not a separate IDE or notebook environment. Do not copy code into an untrusted environment as an implicit diagnostic launch strategy.
+`--pretty` only changes indentation. Discovery and comparison are mutually
+exclusive. `--project` is allowed only with discovery or comparison.
 
-## Python API
+M3 requires an absolute target path. A syntactically invalid target produces a
+schema 1.2 uncertainty report without discovery. A valid but missing target
+still gets discovery and comparison evidence.
 
-`pydoctor.environment.diagnose_current_environment()` returns a `DiagnosticReport`. Its `to_dict()` result is JSON-serializable. Collection and evaluation also have separate entry points, `collect_runtime()` and `diagnose_runtime(runtime)`, for focused tests.
+## Meaning and safety
 
-The report and CLI contract are documented in `docs/ENGINE_CONTRACT.md` relative to the repository root. Review local paths before sharing a report.
+M2 CONFIRMED confirms regular-file observation only. An inert text file named
+python.exe may receive this bounded confidence together with
+interpreter_not_verified.
 
-## Optional Development Setup
+M3 MATCHED confirms a normalized-path or file-identity relationship only.
+interpreter_verification always remains NOT_VERIFIED.
 
-Only with approval for possible package downloads, from `engine/python`:
+No intended or discovered interpreter, package manager, activation script, or
+user package is executed. The sole discovery subprocess is the documented
+installed-location legacy launcher listing.
+
+No packages, project files, environments, PATH, or Registry entries are changed.
+No network request, recursive scan, repair, or automatic selection is performed.
+
+## Tests
+
+From the repository root:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+.\scripts\run-tests.ps1
 ```
 
-Optional checks from the same directory:
+Or set PYTHONPATH to `engine/python/src` and run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m ruff check .
+python -m unittest discover -s engine/python/tests -p "test_*.py" -v
 ```
 
-Neither installation nor these optional tools are required for M1 tests. Do not add runtime dependencies without a current diagnostic requirement.
+No pytest or Ruff installation is necessary. See `docs/TESTING.md` for acceptance,
+including the optional real junction fixture.
+
+The definitive report and exit-code semantics are in `docs/ENGINE_CONTRACT.md`.
