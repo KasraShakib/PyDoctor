@@ -1,11 +1,5 @@
 # Roadmap
 
-## Foundation
-
-- Repository and Python engine foundation exist.
-- Desktop scaffolding and toolchain readiness are separate work.
-- No desktop implementation is claimed.
-
 ## M1: Current interpreter inspection
 
 Status: accepted and committed.
@@ -16,53 +10,121 @@ Baseline: `9ceeacf414c6799b5d093aa7320a2d5f06a7af66`.
 - Current-process executable, version, prefixes, and sys.path.
 - Conservative activation-hint comparison.
 - Schema 1.0 and default JSON CLI.
-- Original 21 unittest tests retained.
 
 ## M2: Python environment discovery
 
-Status: implemented; Windows audit passed for the pre-finalization implementation.
-Finalization acceptance remains pending execution of the delivered changes.
+Status: implemented and committed in `33c84e7`.
 
-The founder's November 10, 2026 audit reports 82 passing tests, a successful
-PowerShell runner, M1/M2 CLI checks, and a project discovery fixture.
+- PEP 514 registry, launcher listing, PATH, active hints, and project roots.
+- Bounded, read-only collection with explicit uncertainty.
+- Schema 1.1.
 
-Finalization gate:
+## M3: Intended interpreter comparison
 
-- Documentation aligned with actual behavior.
-- Inert `python.exe` test passes.
-- File-only CONFIRMED semantics and unverified interpreter issue are visible.
-- WindowsApps and directory identity safeguards pass.
-- Existing M1 and M2 tests remain green.
-- Real junction acceptance passes, or its precise blocked limitation is recorded.
-- PATH, launcher trust, and output-buffer limitations are acknowledged.
-- Founder reviews the actual results before authorizing a baseline commit.
-
-Do not mark this gate accepted merely because source has been supplied.
-
-## M3: Intended Interpreter Comparison
-
-Status: implementation delivered; application, execution, and acceptance pending.
-
-Acceptance gate:
+Status: implemented and committed in `33c84e7`.
 
 - Strict absolute target validation.
-- Exact normalized and safe file-identity relationships.
-- Explicit possible, no-match, and insufficient-evidence cases.
-- Alias, missing-file, permission, incomplete-candidate, and conflict coverage.
-- Immutable schema 1.2 report and dedicated CLI.
-- M2 reuse, project integration, deterministic serialization.
-- No target execution or environment modification.
-- Full test suite and Windows CLI acceptance pass.
-- Founder reviews actual results.
+- Exact normalized path and file-identity relationships.
+- Explicit possible, no-match, and insufficient-evidence outcomes.
+- Schema 1.2.
 
-Only after these gates pass may M2/M3 be recorded as accepted. No commit or
-push is authorized by the delivery.
+## M4: Package inventory and dependency diagnostics
 
-## Next milestone
+Status: implemented and locally verified.
 
-Design a separate, explicitly approved package-inventory milestone. It must
-define trust and collection boundaries before implementation and must not
-silently execute unknown targets.
+- Explicit interpreter target observed without execution.
+- Conventional prefix and site-packages derivation.
+- Bounded `.dist-info`/`.egg-info` metadata reading.
+- PEP 503 name normalization and duplicate detection.
+- Bounded PEP 508 requirement and PEP 440 specifier evaluation.
+- Missing, conflicting, marker-gated, and Requires-Python results.
+- Schema 1.3 with severity, confidence, evidence, and findings.
 
-Dependency diagnostics, notebook diagnosis, repair, desktop UI, integration,
-and distribution packaging remain deferred. Their exact order requires review.
+## M5: Desktop interface
+
+Status: React interface delivered in WebView2; Tauri shell not built.
+
+- React 18 interface in `apps/desktop-ui`.
+- Native WebView2 shell in `apps/desktop_native` via `pywebview`.
+- Interpreter and project selection.
+- Full report, package, notebook, error, repair-plan, discovery, and compare
+  actions.
+- Summary, details, and raw JSON tabs.
+- Loading, empty, and error states.
+- `scripts/run-desktop-ui.cmd` launcher.
+- Stdlib Tkinter interface retained as a fallback.
+
+The Tauri shell remains the long-term target. It requires Rust/Cargo, the MSVC
+build tools, the Tauri CLI, and network access, none of which are available
+here. Tailwind could not be installed either; `styles.css` is a hand-authored
+equivalent.
+
+## M6: Windows packaging
+
+Status: implemented with PyInstaller.
+
+- `dist/PyDoctor.exe`: one-file Tkinter build.
+- `dist/PyDoctor-UI.exe`: one-file React + WebView2 build.
+- `scripts/build-ui.cmd` assembles the static bundle.
+- `scripts/build-exe.cmd` builds both executables.
+- `PYDOCTOR_SELF_CHECK_OUT` verifies the packaged React UI renders and exposes
+  the bridge.
+- A Tauri bundle still requires a prepared Rust/MSVC toolchain.
+
+## M7: Notebook diagnostics
+
+Status: implemented.
+
+- Conventional Jupyter kernelspec discovery.
+- Notebook metadata parsing without cell execution.
+- Kernel missing, interpreter missing, intended-kernel match/mismatch,
+  language-version mismatch, invalid notebook, and empty-target findings.
+- Schema 1.4.
+
+## M8: Error explainer
+
+Status: implemented.
+
+- Traceback file or stdin input.
+- Final exception and frame extraction.
+- Common exception classification with bounded explanations.
+- Optional interpreter context for module metadata and frame-prefix evidence.
+- Schema 1.5.
+
+## M9: Safe repair system
+
+Status: planning implemented; execution guarded and not exposed by the CLI.
+
+- Dry-run plans derived from package, notebook, and error findings.
+- Exact argv, risk, confirmation flag, verification, and evidence per step.
+- Guarded executor requiring exact step id and an allowlisted
+  `python -m pip install` argv.
+- Metadata-only post-execution verification.
+- Schema 1.6.
+
+## M10: Advanced environment management
+
+Status: implemented as an aggregate report.
+
+- Combines M2, M3, M4, and optional M7 evidence.
+- Compact summary counts and highest severity.
+- Nested reports retain their own schemas.
+- Schema 1.7.
+
+## M11: Product quality
+
+Status: implemented for engine metadata and quality documentation.
+
+- `--info` schema `meta` with version, modes, and limits.
+- `--version`.
+- Consistent JSON error envelopes and exit codes.
+- Bounded collection limits documented in `QUALITY.md`.
+- Accessibility and keyboard notes for the interim UI.
+- No telemetry or network transfer.
+
+## Deferred
+
+- React/Tauri desktop implementation and bundle.
+- Standalone Windows executable.
+- Automatic repair execution from the UI.
+- Localization, auto-update, and analytics.

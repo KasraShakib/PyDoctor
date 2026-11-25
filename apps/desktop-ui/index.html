@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PyDoctor</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script>
+      // Apply the saved theme and language before first paint to avoid a flash.
+      (function () {
+        try {
+          var theme = localStorage.getItem("pyd.theme");
+          if (!theme) {
+            theme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+          }
+          document.documentElement.dataset.theme = theme;
+          var lang = localStorage.getItem("pyd.lang") || "en";
+          document.documentElement.lang = lang;
+          document.documentElement.dir = lang === "fa" ? "rtl" : "ltr";
+        } catch (ignored) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="./vendor/react.production.min.js"></script>
+    <script src="./vendor/react-dom.production.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

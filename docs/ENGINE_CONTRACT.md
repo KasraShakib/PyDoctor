@@ -9,20 +9,33 @@ trusted Python 3.12+ interpreter.
 python -m pydoctor --pretty
 python -m pydoctor --discover --pretty
 python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --pretty
+python -m pydoctor --inspect-packages "C:\Path\To\python.exe" --pretty
+python -m pydoctor --inspect-notebooks "C:\Path\To\Project" --pretty
+python -m pydoctor --explain-error "C:\Path\To\traceback.txt" --pretty
+python -m pydoctor --repair-plan "C:\Path\To\report.json" --pretty
+python -m pydoctor --environment-report "C:\Path\To\python.exe" --pretty
+python -m pydoctor --info --pretty
 ```
 
 Successful collection writes exactly one JSON document and a terminating newline
 to stdout, with empty stderr. `--pretty` changes indentation only. Strings use
 ASCII JSON escapes for Windows console portability.
 
-`--discover` and `--compare-interpreter` are mutually exclusive.
-`--project` requires discovery or comparison mode.
+All diagnostic modes are mutually exclusive. `--project` applies to discovery,
+comparison, and environment reports. `--interpreter` supplies intended
+interpreter context for notebook and error diagnosis.
 
 | Mode | schema_version | scope |
 | --- | --- | --- |
 | Default M1 | 1.0 | current_interpreter |
 | M2 discovery | 1.1 | python_discovery |
 | M3 comparison | 1.2 | intended_interpreter_comparison |
+| M4 packages | 1.3 | package_diagnostics |
+| M7 notebooks | 1.4 | notebook_diagnostics |
+| M8 errors | 1.5 | error_explanation |
+| M9 repair plan | 1.6 | repair_plan |
+| M10 environment | 1.7 | environment_report |
+| M11 metadata | meta | engine_info |
 
 No mode automatically selects or executes an intended interpreter.
 
@@ -330,9 +343,192 @@ launcher diagnostics. There is no telemetry or automatic sharing.
 Startup failure, unavailable modules, broken output streams, and unexpected
 programming errors are not guaranteed to use the JSON error envelope.
 
-Desktop process supervision, packaging, package inventory, notebook diagnosis,
-repair, and a broader request protocol remain future work.
+Desktop process supervision, packaging, notebook diagnosis, repair, and a
+broader request protocol remain future work.
+
+## M4: Package inventory and dependency diagnostics
+
+```powershell
+python -m pydoctor --inspect-packages "C:\Path\To\python.exe" --pretty
 ```
+
+Schema 1.3; scope `package_diagnostics`.
+
+### Target and prefix policy
+
+The target must be an explicit interpreter path. The engine observes it with the
+same target validation as M3 and never executes it.
+
+The environment prefix is derived from the conventional layout
+`<prefix>\Scripts\python.exe` or `<prefix>\bin\python`. Site-packages candidates
+are `<prefix>\Lib\site-packages` and `<prefix>\lib\python3.X\site-packages`.
+`pyvenv.cfg` is read for `version`/`version_info` only; its `home` value is not
+followed. No interpreter is run to obtain `sys.prefix` or `sys.version`.
+
+### Inventory
+
+`.dist-info` and `.egg-info` entries are enumerated with a 4096-entry limit per
+root and at most 16 candidate roots. `METADATA`/`PKG-INFO` is parsed with the
+standard library email parser, capped at 2 MiB. `INSTALLER` and
+`direct_url.json` are read when present.
+
+Distribution names are normalized per PEP 503. A missing Name or Version is an
+explicit issue, not an inferred value. Metadata presence does not prove that a
+package imports, that native extensions load, or that the distribution is
+healthy.
+
+### Top-level fields
+
+- schema_version: 1.3.
+- scope: package_diagnostics.
+- target: M3 target observation for the supplied interpreter path.
+- interpreter_prefix, python_version, python_version_source.
+- site_packages: observed candidate roots with existence and distribution counts.
+- distributions: parsed metadata records with nested issues.
+- dependencies: requirement and Requires-Python results with nested issues.
+- findings: M4 findings with severity.
+- issues: inventory-level collection issues; distribution and dependency issues
+  remain attached to their records.
+
+### Dependency evaluation
+
+`Requires-Dist` strings are parsed with a bounded PEP 508 subset. Version
+specifiers use a bounded PEP 440 subset. Results are:
+
+| Status | Meaning |
+| --- | --- |
+| SATISFIED | An observed distribution name and version satisfy the clause. |
+| MISSING | No observed distribution has the normalized name; inventory may be incomplete. |
+| VERSION_CONFLICT | Observed versions were parsed and none satisfy the clause. |
+| SKIPPED | A supported environment marker evaluates to false. |
+| OPTIONAL_UNKNOWN | The marker depends on an unselected extra. |
+| UNKNOWN | Parsing, marker evaluation, direct references, or version comparison was inconclusive. |
+
+`Requires-Python` is checked only when the target version is known from
+`pyvenv.cfg` or a `python3.X` layout. Otherwise it is UNKNOWN with
+`python_version_unknown`.
+
+Environment markers are evaluated only with variables the engine can establish
+without executing the target: `python_version`, `python_full_version`,
+`sys_platform`, `os_name`, and `platform_system`. Unknown variables such as
+`extra`, `platform_machine`, or `implementation_name` produce UNKNOWN, never a
+guessed result.
+
+### Findings and safety
+
+Findings cover inventory observation, missing site-packages, duplicate
+distributions, missing dependencies, version conflicts, Requires-Python
+incompatibility, incomplete metadata, inconclusive analysis, and an unverified
+target version. Each M4 finding carries a `severity` of `INFO`, `WARNING`, or
+`ERROR` in addition to the shared CONFIRMED/LIKELY/UNKNOWN confidence. Severity
+expresses impact; confidence expresses evidence strength. They are independent.
+
+M4 does not execute the target interpreter, import packages, run pip, resolve
+direct URLs, download anything, install or remove packages, modify environments,
+or scan recursively. Only metadata files under the derived site-packages roots
+are read.
+
+## M7: Notebook and kernel diagnostics
+
+```powershell
+python -m pydoctor --inspect-notebooks "C:\Path\To\Project" --pretty
+python -m pydoctor --inspect-notebooks "C:\Path\To\Project" --interpreter "C:\Path\To\python.exe" --pretty
+```
+
+Schema 1.4; scope `notebook_diagnostics`.
+
+The target is a `.ipynb` file or a project directory. A directory contributes
+only its direct `.ipynb` children; no recursive scan is performed.
+
+Kernelspecs are read from `%APPDATA%\jupyter\kernels`,
+`%PROGRAMDATA%\jupyter\kernels`, `<sys.prefix>\share\jupyter\kernels`, and,
+when `--interpreter` is supplied, `<intended prefix>\share\jupyter\kernels`.
+Each `kernel.json` is parsed for `argv`, `display_name`, and `language`. The
+first argv element is treated as an interpreter only when it is an absolute
+path to a Python-like executable.
+
+Notebook metadata is read for `kernelspec.name`, `kernelspec.display_name`,
+`language_info.name`, `language_info.version`, and `nbformat`. No cell is
+executed and no kernel is launched.
+
+Findings cover observed kernels, missing kernels, missing kernel interpreters,
+kernel/intended-interpreter matches and mismatches, notebook language-version
+mismatches, invalid notebooks, and empty targets. `--interpreter` also enables
+a version comparison from local `pyvenv.cfg`/layout evidence.
+
+## M8: Traceback explanation
+
+```powershell
+python -m pydoctor --explain-error "C:\Path\To\traceback.txt" --pretty
+python -m pydoctor --explain-error - --interpreter "C:\Path\To\python.exe" --pretty
+```
+
+Schema 1.5; scope `error_explanation`. `-` reads stdin.
+
+The final exception line and all `File "...", line N` frames are parsed. The
+explanation is bounded by the supplied text. Recognized classes include
+`ModuleNotFoundError`, `ImportError`, syntax/indentation errors, permission and
+file-not-found errors, attribute and type mismatches, memory errors, and a
+generic classified fallback.
+
+With `--interpreter`, M4 inventory evidence can add
+`error.module_metadata_present` when distribution metadata for the missing
+module exists, and `error.frames_outside_intended_environment` when frame paths
+fall outside the intended prefix. Neither finding proves which interpreter ran.
+
+No traceback code is executed.
+
+## M9: Safe repair planning
+
+```powershell
+python -m pydoctor --repair-plan "C:\Path\To\report.json" --pretty
+```
+
+Schema 1.6; scope `repair_plan`. The CLI only builds a dry-run plan.
+
+Steps are derived from observed `MISSING` and `VERSION_CONFLICT` dependency
+records, Requires-Python incompatibility, duplicate distributions, notebook
+kernel problems, and missing-module errors. Each step has an id, title,
+rationale, risk, `requires_confirmation`, optional exact `argv`, verification
+description, and evidence. `dry_run` is always true in a plan.
+
+The CLI never executes a step. The engine exposes
+`execute_repair_step(step, approved_step_id=...)`, which requires the exact step
+id, an absolute Python path, and an allowlisted `python -m pip install` argv.
+Execution uses `shell=False`, a timeout, captured output, and metadata-only
+verification. No repair execution is performed by tests or by the desktop UI.
+
+## M10: Unified environment report
+
+```powershell
+python -m pydoctor --environment-report "C:\Path\To\python.exe" --pretty
+python -m pydoctor --environment-report "C:\Path\To\python.exe" --project "C:\Path\To\Project" --pretty
+```
+
+Schema 1.7; scope `environment_report`.
+
+The report aggregates existing evidence without new collection rules: M3 target
+observation and comparison, M2 discovery, M4 packages, and optional M7
+notebooks. `summary` contains the comparison outcome, distribution count,
+missing-dependency and version-conflict counts, notebook and kernel counts, and
+the highest finding severity. Nested reports retain their own schemas.
+
+## M11: Engine metadata and quality
+
+```powershell
+python -m pydoctor --info --pretty
+python -m pydoctor --version
+```
+
+`--info` emits schema `meta`, scope `engine_info`, with the engine version,
+engine Python version, mode/schema map, and collection limits. `--version`
+prints `pydoctor-engine <version>` and exits 0.
+
+Handled errors use a JSON envelope on stderr with the active schema and an error
+code. Invalid report input for `--repair-plan` exits 2 with
+`invalid_report_file`. Other handled collection failures exit 1 with
+`collection_failed`. Invalid project input exits 2 with
+`invalid_project_directory`.
 
 # بخش سوم — تست و پذیرش
 

@@ -37,6 +37,13 @@ python -m pydoctor --pretty
 python -m pydoctor --discover --pretty
 python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --pretty
 python -m pydoctor --compare-interpreter "C:\Path\To\python.exe" --project "C:\Path\To\Project" --pretty
+python -m pydoctor --inspect-packages "C:\Path\To\python.exe" --pretty
+python -m pydoctor --inspect-notebooks "C:\Path\To\Project" --interpreter "C:\Path\To\python.exe" --pretty
+python -m pydoctor --explain-error "C:\Path\To\traceback.txt" --pretty
+python -m pydoctor --repair-plan "C:\Path\To\report.json" --pretty
+python -m pydoctor --environment-report "C:\Path\To\python.exe" --project "C:\Path\To\Project" --pretty
+python -m pydoctor --info --pretty
+python -m pydoctor --version
 ```
 
 Default invocation observes the Python running PYD, not the comparison target.
@@ -44,7 +51,60 @@ M3 never executes the target. Target paths must be absolute and are not expanded
 from environment variables or resolved against cwd.
 
 Discovery and comparison support explicit project context. No recursive project
-scan or automatic environment activation is performed.
+scan or automatic environment activation is performed. Package, notebook, error,
+repair-plan, and environment modes are read-only; see `QUALITY.md` for limits
+and error envelopes.
+
+## Desktop interface
+
+The primary desktop interface is React 18 hosted in WebView2. It needs no
+Node.js, Rust, or network access at runtime.
+
+From the project root:
+
+```powershell
+cmd /c scripts\build-ui.cmd
+.\scripts\run-desktop-ui.cmd
+```
+
+The Tkinter fallback needs only the standard library:
+
+```powershell
+.\scripts\run-desktop.cmd
+```
+
+Both launchers set `PYTHONPATH` for you. The React shell requires `pywebview` and
+`pythonnet`; the engine and its tests do not.
+
+## Build executables
+
+```powershell
+cmd /c scripts\build-ui.cmd
+cmd /c scripts\build-exe.cmd
+```
+
+Outputs are `dist/PyDoctor.exe` and `dist/PyDoctor-UI.exe`. PyInstaller is
+required. Verify the packaged React app with `PYDOCTOR_SELF_CHECK_OUT` as
+described in `TESTING.md`.
+
+For the portable release folder and zip:
+
+```powershell
+cmd /c scripts\build-release.cmd
+```
+
+Output is `release/PyDoctor-0.2.0-win64/` and
+`release/PyDoctor-0.2.0-win64.zip`. These generated artifacts are gitignored;
+attach the zip to a GitHub release instead of committing it.
+
+## Regenerate the icon
+
+```powershell
+python scripts\make-icon.py
+```
+
+This rewrites `assets/icon.ico`, `assets/icon-256.png`, and `assets/icon.svg`.
+Rebuild the executables afterwards to embed the new icon.
 
 ## Tests
 
@@ -52,6 +112,12 @@ From the project root:
 
 ```powershell
 .\scripts\run-tests.ps1
+```
+
+If PowerShell script execution is disabled by policy, use the batch runner:
+
+```powershell
+cmd /c scripts\run-tests.cmd
 ```
 
 For explicit unittest commands, CLI acceptance, temporary fixtures, and optional
@@ -84,9 +150,12 @@ verification report look complete.
 
 ## Desktop status
 
-The historical Node.js, Rust, Cargo, Tauri CLI, C++ Build Tools, and WebView2
-readiness limitations do not block engine tests. No desktop scaffold or
-toolchain installation is part of M1–M3.
+The React interface and both standalone executables are built and verified. The
+Tauri shell is not built: Rust/Cargo, the Tauri CLI, and the MSVC build tools are
+unavailable, and the Rust and npm registries are unreachable. Tailwind could not
+be installed, so the React interface uses a hand-authored CSS layer. These
+limitations do not block the engine, the React UI, the Tkinter fallback, or the
+PyInstaller builds.
 
 ## Applying a text delivery
 

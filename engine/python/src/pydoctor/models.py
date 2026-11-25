@@ -41,6 +41,13 @@ class Finding:
 
 
 @dataclass(frozen=True)
+class SeverityFinding(Finding):
+    """A finding with impact severity, independent of evidence confidence."""
+
+    severity: str = "INFO"
+
+
+@dataclass(frozen=True)
 class DiagnosticReport:
     """Version 1.0 contract for a single current-interpreter observation."""
 
